@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Техника на складе — Мастерская</title>
+  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div id="navbar"></div>
+  <main class="container py-4">
+    <h4 class="fw-bold mb-4">Отремонтированная техника (ждёт выдачи)</h4>
+    <div class="card border-0 shadow-sm"><div class="table-responsive">
+      <table class="table table-hover align-middle mb-0"><thead class="table-light"><tr>
+        <th>№</th><th>Клиент</th><th>Техника</th><th>Готов с</th><th>Лежит, дн.</th><th></th>
+      </tr></thead><tbody id="body"></tbody></table>
+    </div><div id="empty" class="text-center text-muted py-5 d-none">Склад свободен 👍</div></div>
+  </main>
+  <script src="js/app.js"></script>
+  <script>
+    App.requireAuth(); App.renderNav('stock');
+    const orders = App.getData('orders').filter(o=>o.status==='ready'), clients = App.getData('clients');
+    const body = document.getElementById('body'), empty = document.getElementById('empty');
+    if (!orders.length) { empty.classList.remove('d-none'); }
+    else { orders.forEach(o=>{ const c=App.byId(clients,o.clientId);
+      const d = o.completedAt||o.acceptedAt; const days = d?Math.max(0,Math.floor((Date.now()-new Date(d))/86400000)):0;
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td class="fw-semibold">#${o.id}</td><td>${c?App.esc(c.name):'—'}</td>
+        <td>${App.esc([o.deviceType,o.brand,o.model].filter(Boolean).join(' '))}</td>
+        <td class="text-muted small">${App.fmtDate(d)}</td>
+        <td>${days>7?'<span class="text-danger fw-semibold">'+days+'</span>':days}</td>
+        <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="receipt.html?id=${o.id}">Чек</a>
+        <a class="btn btn-sm btn-outline-secondary" href="order-create.html?id=${o.id}">Выдать</a></td>`;
+      body.appendChild(tr); }); }
+  </script>
+</body>
+</html>

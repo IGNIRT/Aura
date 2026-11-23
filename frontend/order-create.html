@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заказ — Мастерская</title>
+  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <div id="navbar"></div>
+  <main class="container py-4">
+    <h4 class="fw-bold mb-4" id="pageTitle">Новый заказ</h4>
+    <form id="orderForm">
+      <input type="hidden" id="orderId">
+      <div class="row g-3">
+        <div class="col-md-6"><label class="form-label small text-muted">Клиент</label><select id="clientId" class="form-select" required></select></div>
+        <div class="col-md-6"><label class="form-label small text-muted">Дата приёма</label><input type="datetime-local" id="acceptedAt" class="form-control" required></div>
+        <div class="col-md-3"><label class="form-label small text-muted">Тип техники</label>
+          <select id="deviceType" class="form-select" required><option value="">Выберите...</option><option>Телевизор</option><option>Тюнер</option><option>DVD-плеер</option><option>Монитор</option><option>Прочее</option></select></div>
+        <div class="col-md-3"><label class="form-label small text-muted">Бренд</label><input type="text" id="brand" class="form-control" placeholder="Samsung"></div>
+        <div class="col-md-3"><label class="form-label small text-muted">Модель</label><input type="text" id="model" class="form-control" placeholder="UE40"></div>
+        <div class="col-md-3"><label class="form-label small text-muted">Серийный №</label><input type="text" id="serial" class="form-control"></div>
+        <div class="col-12"><label class="form-label small text-muted">Симптомы (со слов клиента)</label><textarea id="symptoms" class="form-control" rows="2" required></textarea></div>
+        <div class="col-12"><label class="form-label small text-muted">Диагноз мастера</label><textarea id="diagnosis" class="form-control" rows="2"></textarea></div>
+      </div>
+
+      <hr class="my-4">
+      <h6 class="fw-bold">Запчасти (списание со склада)</h6>
+      <div class="row g-2 align-items-end mb-2">
+        <div class="col-md-6"><label class="form-label small text-muted">Позиция</label><select id="partSel" class="form-select"></select></div>
+        <div class="col-md-3"><label class="form-label small text-muted">Кол-во</label><input type="number" id="partQty" class="form-control" min="1" value="1"></div>
+        <div class="col-md-3"><button type="button" class="btn btn-outline-primary w-100" onclick="addPart()">Добавить</button></div>
+      </div>
+      <table class="table table-sm"><thead class="table-light"><tr><th>Запчасть</th><th>Кол-во</th><th>Цена</th><th></th></tr></thead><tbody id="partsBody"></tbody></table>
+
+      <div class="row g-3 mt-2">
+        <div class="col-md-4"><label class="form-label small text-muted">Стоимость работы, ₽</label><input type="number" id="laborCost" class="form-control" min="0" value="0"></div>
+        <div class="col-md-4"><label class="form-label small text-muted">Запчасти, ₽</label><input type="text" id="partsCostView" class="form-control" readonly></div>
+        <div class="col-md-4"><label class="form-label small text-muted">Итого, ₽</label><input type="text" id="totalView" class="form-control" readonly></div>
+        <div class="col-md-4"><label class="form-label small text-muted">Статус</label>
+          <select id="status" class="form-select"><option value="accepted">Принят</option><option value="diagnosis">Диагностика</option><option value="in_work">В работе</option><option value="waiting_parts">Ждёт запчасти</option><option value="ready">Готов к выдаче</option><option value="issued">Выдан</option></select></div>
+        <div class="col-md-4"><label class="form-label small text-muted">Оплата</label>
+          <select id="paymentType" class="form-select"><option value="money">Наличные</option><option value="debt">Долг</option></select></div>
+        <div class="col-md-4"><label class="form-label small text-muted">Комментарий к оплате</label><input type="text" id="paymentNote" class="form-control"></div>
+        <div class="col-12"><div class="form-check"><input type="checkbox" id="isPaid" class="form-check-input"><label class="form-check-label small" for="isPaid">Оплачено</label></div></div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <a href="orders.html" class="btn btn-outline-secondary">Отмена</a>
+        <button type="submit" class="btn btn-primary">Сохранить заказ</button>
+      </div>
+    </form>
+  </main>
+  <script src="lib/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.requireAuth(); App.renderNav('create');
+    let picked = []; // [{partId, qty}]
+    const id = new URLSearchParams(location.search).get('id');
+    const $ = s => document.getElementById(s);
+
+    function fillClients() { $('clientId').innerHTML = App.getData('clients').map(c=>`<option value="${c.id}">${App.esc(c.name)}</option>`).join(''); }
+    function fillParts() { $('partSel').innerHTML = App.getData('parts').filter(p=>p.qty>0).map(p=>`<option value="${p.id}">${App.esc(p.name)} (ост. ${p.qty})</option>`).join('') || '<option value="">нет позиций</option>'; }
+
+    window.addPart = () => {
+      const pid = +$('partSel').value, q = +$('partQty').value; if (!pid || q<1) return;
+      const p = App.byId(App.getData('parts'), pid);
+      const already = picked.filter(x=>x.partId===pid).reduce((s,x)=>s+x.qty,0);
+      if (q + already > p.qty) { alert(`На складе только ${p.qty} шт «${p.name}»`); return; }
+      picked.push({ partId: pid, qty: q }); renderPicked();
+    };
+    window.rmPart = i => { picked.splice(i,1); renderPicked(); };
+    function renderPicked() {
+      const parts = App.getData('parts');
+      $('partsBody').innerHTML = picked.map((x,i)=>{ const p=App.byId(parts,x.partId);
+        return `<tr><td>${App.esc(p.name)}</td><td>${x.qty}</td><td>${App.money(p.price*x.qty)} ₽</td><td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger" onclick="rmPart(${i})">✕</button></td></tr>`; }).join('');
+      const pc = picked.reduce((s,x)=>{const p=App.byId(parts,x.partId);return s+(p?p.price*x.qty:0);},0);
+      $('partsCostView').value = App.money(pc)+' ₽';
+      $('totalView').value = App.money(pc + (+$('laborCost').value||0))+' ₽';
+    }
+
+    if (id) {
+      const o = App.byId(App.getData('orders'), id);
+      if (o) { $('pageTitle').textContent='Редактирование заказа #'+o.id; $('orderId').value=o.id;
+        $('clientId').value=o.clientId; $('acceptedAt').value=o.acceptedAt; $('deviceType').value=o.deviceType;
+        $('brand').value=o.brand||''; $('model').value=o.model||''; $('serial').value=o.serial||'';
+        $('symptoms').value=o.symptoms||''; $('diagnosis').value=o.diagnosis||''; $('status').value=o.status;
+        $('laborCost').value=o.laborCost||0; $('paymentType').value=o.paymentType||'money';
+        $('paymentNote').value=o.paymentNote||''; $('isPaid').checked=!!o.isPaid;
+        picked = App.partsForOrder(o.id).map(op=>({partId:op.partId, qty:op.qty}));
+      }
+    } else { $('acceptedAt').value = new Date().toISOString().slice(0,16); }
+
+    fillClients(); fillParts(); renderPicked();
+    $('laborCost').addEventListener('input', renderPicked);
+
+    $('orderForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const orders = App.getData('orders');
+      const order = {
+        id: $('orderId').value ? +$('orderId').value : null,
+        clientId: +$('clientId').value, acceptedBy: +(localStorage.getItem('ms_user_id')||1),
+        acceptedAt: $('acceptedAt').value, deviceType: $('deviceType').value, brand: $('brand').value.trim(),
+        model: $('model').value.trim(), serial: $('serial').value.trim(), symptoms: $('symptoms').value.trim(),
+        diagnosis: $('diagnosis').value.trim(), status: $('status').value, laborCost: +$('laborCost').value||0,
+        paymentType: $('paymentType').value, paymentNote: $('paymentNote').value.trim(), isPaid: $('isPaid').checked,
+        completedAt: $('status').value==='ready'?new Date().toISOString().slice(0,16):null,
+        pickedUpAt: $('status').value==='issued'?new Date().toISOString().slice(0,16):null
+      };
+      try { App.saveOrder(order, picked); location.href='orders.html'; }
+      catch(err){ alert(err.message); }
+    });
+  </script>
+</body>
+</html>

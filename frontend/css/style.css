@@ -1,0 +1,11 @@
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.login-wrap { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+.logo-box { width:80px; height:80px; border-radius:16px; background:#f8f9fa; display:inline-flex; align-items:center; justify-content:center; overflow:hidden; }
+.logo-img { width:100%; height:100%; object-fit:contain; }
+.xsmall { font-size:.75rem; }
+.navbar { border-bottom:1px solid #e5e7eb; }
+.navbar .nav-link { color:#4b5563 !important; font-size:.9rem; }
+.navbar .nav-link.active { color:#0d6efd !important; font-weight:600; }
+.table th { font-weight:600; font-size:.85rem; color:#6b7280; text-transform:uppercase; letter-spacing:.02em; }
+.badge.bg-light { background:#f3f4f6 !important; }
+@media print { .no-print { display:none !important; } body { background:#fff; } .card { box-shadow:none !important; } }

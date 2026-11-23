@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Чек — Мастерская</title>
+  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+  <main class="container py-4" style="max-width:720px">
+    <div class="d-flex justify-content-between mb-3 no-print">
+      <a href="orders.html" class="btn btn-outline-secondary">← Назад</a>
+      <button class="btn btn-primary" onclick="window.print()">🖨 Печать</button>
+    </div>
+    <div class="card border-0 shadow-sm p-4" id="receipt"></div>
+  </main>
+  <script src="js/app.js"></script>
+  <script>
+    App.requireAuth();
+    const id = new URLSearchParams(location.search).get('id');
+    const o = App.byId(App.getData('orders'), id);
+    if (!o) { document.getElementById('receipt').innerHTML='<div class="text-muted">Заказ не найден</div>'; }
+    else {
+      const c = App.byId(App.getData('clients'), o.clientId);
+      const m = App.byId(App.getData('users'), o.acceptedBy);
+      const ops = App.partsForOrder(o.id), parts = App.getData('parts');
+      const rows = ops.map(op=>{ const p=App.byId(parts,op.partId)||{};
+        return `<tr><td>${App.esc(p.name||'?')}</td><td>${op.qty}</td><td>${App.money(op.unitPrice)} ₽</td><td>${App.money(op.unitPrice*op.qty)} ₽</td></tr>`; }).join('');
+      const masterBlock = App.isMaster() ? `
+        <div class="alert alert-light border mt-3 small">
+          <b>Служебное (мастер):</b> себестоимость запчастей ${App.money(App.calcOrderParts(o.id).cost)} ₽ ·
+          маржа ${App.money(o.totalPrice - App.calcOrderParts(o.id).cost - (o.laborCost||0))} ₽
+        </div>` : '';
+      document.getElementById('receipt').innerHTML = `
+        <h4 class="fw-bold mb-1">Чек №${o.id}</h4>
+        <div class="text-muted small mb-3">Мастерская по ремонту бытовой техники</div>
+        <div class="row small mb-3">
+          <div class="col-6"><b>Принял:</b> ${m?App.esc(m.fullName):'—'}</div>
+          <div class="col-6"><b>Дата приёма:</b> ${App.fmtDate(o.acceptedAt)}</div>
+          <div class="col-6"><b>Клиент:</b> ${c?App.esc(c.name):'—'}</div>
+          <div class="col-6"><b>Телефон:</b> ${c?App.esc(c.phone||'—'):'—'}</div>
+        </div>
+        <table class="table table-sm mb-3"><tbody>
+          <tr><td class="text-muted">Техника</td><td>${App.esc([o.deviceType,o.brand,o.model].filter(Boolean).join(' '))}</td></tr>
+          <tr><td class="text-muted">Серийный №</td><td>${App.esc(o.serial||'—')}</td></tr>
+          <tr><td class="text-muted">Симптомы</td><td>${App.esc(o.symptoms||'—')}</td></tr>
+          <tr><td class="text-muted">Выполнено</td><td>${App.esc(o.diagnosis||'—')}</td></tr>
+        </tbody></table>
+        <table class="table table-sm"><thead><tr><th>Запчасть</th><th>Кол-во</th><th>Цена</th><th>Сумма</th></tr></thead><tbody>${rows||'<tr><td colspan=4 class=text-muted>без запчастей</td></tr>'}</tbody></table>
+        <div class="d-flex justify-content-between border-top pt-2"><span>Запчасти:</span><b>${App.money(o.partsCost)} ₽</b></div>
+        <div class="d-flex justify-content-between"><span>Работа:</span><b>${App.money(o.laborCost)} ₽</b></div>
+        <div class="d-flex justify-content-between fs-5 border-top pt-2 mt-2"><span>Итого:</span><b>${App.money(o.totalPrice)} ₽</b></div>
+        <div class="mt-2">${App.paymentBadge(o.paymentType)} ${o.isPaid?'<span class="badge bg-success">Оплачено</span>':'<span class="badge bg-danger">Не оплачено</span>'} ${o.paymentNote?App.esc(o.paymentNote):''}</div>
+        ${masterBlock}
+        <div class="text-muted small mt-3">Выдан: ${App.fmtDate(o.pickedUpAt||o.completedAt||'')}</div>`;
+    }
+  </script>
+</body>
+</html>

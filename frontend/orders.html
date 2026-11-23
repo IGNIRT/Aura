@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Заказы — Мастерская</title>
+  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+  <div id="navbar"></div>
+  <main class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="fw-bold mb-0">Заказы</h4>
+      <a href="order-create.html" class="btn btn-primary">➕ Новый заказ</a>
+    </div>
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light"><tr>
+            <th>№</th><th>Клиент</th><th>Техника</th><th>Неисправность</th>
+            <th>Статус</th><th>Сумма</th><th>Оплата</th><th>Дата приёма</th><th></th>
+          </tr></thead>
+          <tbody id="ordersBody"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="text-center text-muted py-5 d-none">Заказов пока нет. <a href="order-create.html">Создать первый</a>.</div>
+    </div>
+  </main>
+  <script src="lib/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.requireAuth(); App.renderNav('orders');
+    function load() {
+      const orders = App.getData('orders'), clients = App.getData('clients');
+      const body = document.getElementById('ordersBody'), empty = document.getElementById('empty');
+      body.innerHTML = '';
+      if (!orders.length) { empty.classList.remove('d-none'); return; }
+      empty.classList.add('d-none');
+      orders.slice().reverse().forEach(o => {
+        const c = App.byId(clients, o.clientId);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="fw-semibold">#${o.id}</td>
+          <td>${c ? App.esc(c.name) : '—'}</td>
+          <td>${App.esc([o.deviceType,o.brand,o.model].filter(Boolean).join(' ')) || '—'}</td>
+          <td class="text-muted small">${App.esc(o.symptoms||'')}</td>
+          <td>${App.statusBadge(o.status)}</td>
+          <td class="fw-semibold">${App.money(o.totalPrice)} ₽</td>
+          <td>${App.paymentBadge(o.paymentType)}${o.isPaid?' <span class="badge bg-success">опл</span>':''}</td>
+          <td class="text-muted small">${App.fmtDate(o.acceptedAt)}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-primary me-1" href="receipt.html?id=${o.id}">Чек</a>
+            <a class="btn btn-sm btn-outline-secondary me-1" href="order-create.html?id=${o.id}">Ред.</a>
+            <button class="btn btn-sm btn-outline-danger" onclick="del(${o.id})">✕</button>
+          </td>`;
+        body.appendChild(tr);
+      });
+    }
+    window.del = id => { if (!confirm('Удалить заказ?')) return;
+      const ops = App.getData('orderParts'), parts = App.getData('parts');
+      ops.filter(op=>String(op.orderId)===String(id)).forEach(op=>{const p=App.byId(parts,op.partId); if(p)p.qty+=op.qty;});
+      App.setData('orderParts', ops.filter(op=>String(op.orderId)!==String(id)));
+      App.setData('orders', App.getData('orders').filter(o=>o.id!==id)); load(); };
+    load();
+  </script>
+</body>
+
+</html>

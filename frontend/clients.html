@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Клиенты — Мастерская</title>
+  <link href="lib/bootstrap.min.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+  <div id="navbar"></div>
+
+  <main class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h4 class="fw-bold mb-0">Клиенты</h4>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#clientModal" onclick="editClient(null)">
+        <i class="bi bi-plus-lg me-1"></i>Добавить клиента
+      </button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Имя</th>
+              <th>Телефон</th>
+              <th>Адрес</th>
+              <th>Заказов</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="clientsBody"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="text-center text-muted py-5 d-none">Клиентов пока нет.</div>
+    </div>
+  </main>
+
+  <!-- Модалка -->
+  <div class="modal fade" id="clientModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="clientForm">
+          <div class="modal-header">
+            <h5 class="modal-title" id="clientModalTitle">Новый клиент</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <input type="hidden" id="clientId">
+            <div class="mb-3">
+              <label class="form-label small text-muted">ФИО</label>
+              <input type="text" id="name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">Телефон</label>
+              <input type="tel" id="phone" class="form-control" placeholder="+7 ...">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">Адрес</label>
+              <input type="text" id="address" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label class="form-label small text-muted">Заметка</label>
+              <textarea id="note" class="form-control" rows="2"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="lib/bootstrap.bundle.min.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    App.requireAuth();
+    App.renderNav('clients');
+
+    function load() {
+      const clients = App.getData('clients') || [];
+      const orders = App.getData('orders') || [];
+      const body = document.getElementById('clientsBody');
+      const empty = document.getElementById('empty');
+      body.innerHTML = '';
+      if (!clients.length) { empty.classList.remove('d-none'); return; }
+      empty.classList.add('d-none');
+      clients.forEach(c => {
+        const cnt = orders.filter(o => o.clientId === c.id).length;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="fw-semibold">${App.esc(c.name)}</td>
+          <td>${c.phone ? '<a href="tel:' + App.esc(c.phone) + '">' + App.esc(c.phone) + '</a>' : '—'}</td>
+          <td class="text-muted small">${App.esc(c.address || '—')}</td>
+          <td><span class="badge bg-light text-dark">${cnt}</span></td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-secondary me-1" onclick="editClient(${c.id})"><i class="bi bi-pencil"></i></button>
+            <button class="btn btn-sm btn-outline-danger" onclick="del(${c.id})"><i class="bi bi-trash"></i></button>
+          </td>`;
+        body.appendChild(tr);
+      });
+    }
+
+    window.editClient = function (id) {
+      const clients = App.getData('clients') || [];
+      const c = id ? clients.find(x => x.id === id) : null;
+      document.getElementById('clientModalTitle').textContent = c ? 'Редактировать клиента' : 'Новый клиент';
+      document.getElementById('clientId').value = c ? c.id : '';
+      document.getElementById('name').value = c ? c.name : '';
+      document.getElementById('phone').value = c ? (c.phone || '') : '';
+      document.getElementById('address').value = c ? (c.address || '') : '';
+      document.getElementById('note').value = c ? (c.note || '') : '';
+    };
+
+    window.del = function (id) {
+      if (!confirm('Удалить клиента?')) return;
+      App.setData('clients', App.getData('clients').filter(c => c.id !== id));
+      load();
+    };
+
+    document.getElementById('clientForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const clients = App.getData('clients') || [];
+      const id = +document.getElementById('clientId').value;
+      const data = {
+        name: document.getElementById('name').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+        address: document.getElementById('address').value.trim(),
+        note: document.getElementById('note').value.trim()
+      };
+      if (id) {
+        const c = clients.find(x => x.id === id);
+        Object.assign(c, data);
+      } else {
+        data.id = clients.length ? Math.max(...clients.map(x => x.id)) + 1 : 1;
+        clients.push(data);
+      }
+      App.setData('clients', clients);
+      bootstrap.Modal.getInstance(document.getElementById('clientModal')).hide();
+      load();
+    });
+
+    load();
+  </script>
+</body>
+
+</html>
